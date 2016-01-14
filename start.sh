@@ -2,5 +2,5 @@
 
 set -e
 
-python wimblepong.py "$@" &>> log/game.log &
+python wimblepong.py "$@" &> log/game.log &
 echo $! >> .pids
