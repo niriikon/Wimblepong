@@ -1,9 +1,10 @@
-"""Usage: pongbot.py teamname host port """
+"""Usage: wimblepong.py teamname host port """
 
 import json
 import logging
 import socket
 import sys
+import PongGame
 
 X_LEFT = 0
 X_RIGHT = 640
@@ -31,15 +32,15 @@ class PingPongBot(object):
     def __init__(self, connection, log):
         self._connection = connection
         self._log = log
-        self.ball = PongBall(0, 0)
 
     def run(self, teamname):
         self.name = teamname
+        self.game = PongGame(self._log, teamname)
         self._connection.send({'msgType': 'join', 'data': teamname})
         self._response_loop()
 
     def runvs(self, teamname, oppname):
-        self.name = teamname
+        self.game = PongGame(self._log, teamname)
         self._connection.send({'msgType': 'requestDuel', 'data': [teamname, oppname]})
         self._response_loop()
 
@@ -69,13 +70,10 @@ class PingPongBot(object):
         plyr_y = 0
         paddle_mid = 25
         try:
-            side = self._find_side(data)
-
-            self.ball.update(data['ball'])
-            ball_y = self.ball.projected_y(side)
-
-            plyr_y = data[u'left'][u'y']
-            paddle_mid = data[u'conf'][u'paddleHeight'] / 2
+            self.game.update(data)
+            ball_y = self.game.ball.projected_y(side)
+            plyr_y = self.game.me.y
+            paddle_mid = self.game.conf.paddleHeight / 2
         except KeyError:
             self._log.error('Object not found in json')
         dir = 0
@@ -85,79 +83,8 @@ class PingPongBot(object):
             dir = -1.0
         self._connection.send({'msgType': 'changeDir', 'data': dir})
 
-    def _find_side(self, data):
-        if data['left']['playerName'] == self.name:
-            return 'left'
-        else:
-            return 'right'
-
     def _game_over(self, data):
         self._log.info('Game ended. Winner: %s' % data)
-
-class PongPlayer(object):
-    pass
-
-class PongBall(object):
-    heading = (0, 0)
-    DIR_RIGHT = 1
-    DIR_STATIONARY = 0
-    DIR_LEFT = -1
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        self.heading = PongBall.heading
-
-    def update(self, data):
-        newx = data['pos']['x']
-        newy = data['pos']['y']
-        self.heading = (newx-self.x, newy-self.y)
-        self.x = newy
-        self.y = newx
-
-    def direction(self):
-        ''' Returns 1 if ball is heading away from player, -1 if towards and 0 if direction is unknown
-        '''
-        if self.heading[0] < 0:
-            return DIR_LEFT
-        elif self.heading[0] == 0:
-            return DIR_STATIONARY
-        else:
-            return DIR_RIGHT
-
-    def projected_y(self, side):
-        p_x = self.x
-        p_y = self.y
-        p_dirx = self.heading[0] * 20
-        p_diry = self.heading[1] * 20
-        if p_dirx == 0:
-            return 0
-
-        def check_left(pX):
-            return (pX >= X_LEFT)
-
-        def check_right(pX):
-            return (pX <= X_RIGHT)
-
-        if side == 'left':
-            check = check_left
-        else:
-            check = check_right
-
-        while check(p_x):
-            p_x += p_dirx
-            p_y += p_diry
-
-            # Change y direction
-            if p_y > Y_MAX or p_y < Y_MIN:
-                p_diry *= -1
-            if p_x >= X_RIGHT or p_x <= X_LEFT:
-                p_dirx *= -1
-        return p_y
-
-class PongState(object):
-
-    def __init__(self, data):
-        pass
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s',
