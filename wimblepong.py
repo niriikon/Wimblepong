@@ -8,7 +8,7 @@ import sys
 X_LEFT = 0
 X_RIGHT = 640
 Y_MIN = 0
-Y_MAX = 320
+Y_MAX = 480
 
 class JsonOverTcp(object):
     """Send and receive newline delimited JSON messages over TCP."""
@@ -31,9 +31,16 @@ class PingPongBot(object):
     def __init__(self, connection, log):
         self._connection = connection
         self._log = log
+        self.ball = PongBall(0, 0)
 
     def run(self, teamname):
+        self.name = teamname
         self._connection.send({'msgType': 'join', 'data': teamname})
+        self._response_loop()
+
+    def runvs(self, teamname, oppname):
+        self.name = teamname
+        self._connection.send({'msgType': 'requestDuel', 'data': [teamname, oppname]})
         self._response_loop()
 
     def _response_loop(self):
@@ -62,7 +69,11 @@ class PingPongBot(object):
         plyr_y = 0
         paddle_mid = 25
         try:
-            ball_y = data[u'ball']['pos'][u'y']
+            side = self._find_side(data)
+
+            self.ball.update(data['ball'])
+            ball_y = self.ball.projected_y(side)
+
             plyr_y = data[u'left'][u'y']
             paddle_mid = data[u'conf'][u'paddleHeight'] / 2
         except KeyError:
@@ -73,6 +84,12 @@ class PingPongBot(object):
         elif ball_y < (plyr_y + paddle_mid):
             dir = -1.0
         self._connection.send({'msgType': 'changeDir', 'data': dir})
+
+    def _find_side(self, data):
+        if data['left']['playerName'] == self.name:
+            return 'left'
+        else:
+            return 'right'
 
     def _game_over(self, data):
         self._log.info('Game ended. Winner: %s' % data)
@@ -88,11 +105,14 @@ class PongBall(object):
     def __init__(self, x, y):
         self.x = x
         self.y = y
+        self.heading = PongBall.heading
 
-    def update(self, x, y):
-        self.heading = (x-self.x, y-self.y)
-        self.x = x
-        self.y = y
+    def update(self, data):
+        newx = data['pos']['x']
+        newy = data['pos']['y']
+        self.heading = (newx-self.x, newy-self.y)
+        self.x = newy
+        self.y = newx
 
     def direction(self):
         ''' Returns 1 if ball is heading away from player, -1 if towards and 0 if direction is unknown
@@ -104,20 +124,35 @@ class PongBall(object):
         else:
             return DIR_RIGHT
 
-    def projected_y(self):
+    def projected_y(self, side):
         p_x = self.x
         p_y = self.y
-        p_dirx = self.heading[0]
-        p_diry = self.heading[1]
-        while p_x < X_RIGHT:
+        p_dirx = self.heading[0] * 20
+        p_diry = self.heading[1] * 20
+        if p_dirx == 0:
+            return 0
+
+        def check_left(pX):
+            return (pX >= X_LEFT)
+
+        def check_right(pX):
+            return (pX <= X_RIGHT)
+
+        if side == 'left':
+            check = check_left
+        else:
+            check = check_right
+
+        while check(p_x):
             p_x += p_dirx
             p_y += p_diry
 
             # Change y direction
             if p_y > Y_MAX or p_y < Y_MIN:
                 p_diry *= -1
-            if p_x >= X_RIGHT:
-                p_dirx == DIR_LEFT
+            if p_x >= X_RIGHT or p_x <= X_LEFT:
+                p_dirx *= -1
+        return p_y
 
 class PongState(object):
 
@@ -128,8 +163,16 @@ if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s',
                         level=logging.INFO)
     log = logging.getLogger(__name__)
-    try:
-        teamname, hostname, port = sys.argv[1:]
-        PingPongBot(JsonOverTcp(hostname, port), log).run(teamname)
-    except TypeError:
-        sys.exit(__doc__)
+
+    if len(sys.argv) == 4:
+        try:
+            teamname, hostname, port = sys.argv[1:]
+            PingPongBot(JsonOverTcp(hostname, port), log).run(teamname)
+        except TypeError:
+            sys.exit(__doc__)
+    else:
+        try:
+            teamname, oppname, hostname, port = sys.argv[1:]
+            PingPongBot(JsonOverTcp(hostname, port), log).runvs(teamname, oppname)
+        except TypeError:
+            sys.exit(__doc__)
