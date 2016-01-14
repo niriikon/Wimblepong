@@ -5,6 +5,10 @@ import logging
 import socket
 import sys
 
+X_LEFT = 0
+X_RIGHT = 640
+Y_MIN = 0
+Y_MAX = 320
 
 class JsonOverTcp(object):
     """Send and receive newline delimited JSON messages over TCP."""
@@ -58,6 +62,52 @@ class PingPongBot(object):
     def _game_over(self, data):
         self._log.info('Game ended. Winner: %s' % data)
 
+class PongPlayer(object):
+    pass
+
+class PongBall(object):
+    heading = (0, 0)
+    DIR_RIGHT = 1
+    DIR_STATIONARY = 0
+    DIR_LEFT = -1
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+    def update(self, x, y):
+        self.heading = (x-self.x, y-self.y)
+        self.x = x
+        self.y = y
+
+    def direction(self):
+        ''' Returns 1 if ball is heading away from player, -1 if towards and 0 if direction is unknown
+        '''
+        if self.heading[0] < 0:
+            return DIR_LEFT
+        elif self.heading[0] == 0:
+            return DIR_STATIONARY
+        else:
+            return DIR_RIGHT
+
+    def projected_y(self):
+        p_x = self.x
+        p_y = self.y
+        p_dirx = self.heading[0]
+        p_diry = self.heading[1]
+        while p_x < X_RIGHT:
+            p_x += p_dirx
+            p_y += p_diry
+
+            # Change y direction
+            if p_y > Y_MAX or p_y < Y_MIN:
+                p_diry *= -1
+            if p_x >= X_RIGHT:
+                p_dirx == DIR_LEFT
+
+class PongState(object):
+
+    def __init__(self, data):
+        pass
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s',
