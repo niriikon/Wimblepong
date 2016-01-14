@@ -27,6 +27,7 @@ class JsonOverTcp(object):
 
 
 class PingPongBot(object):
+    counter = 0
     def __init__(self, connection, log):
         self._connection = connection
         self._log = log
@@ -37,10 +38,10 @@ class PingPongBot(object):
 
     def _response_loop(self):
         response_handlers = {
-                'joined': self._game_joined,
-                'gameStarted': self._game_started,
-                'gameIsOn': self._make_move,
-                'gameIsOver': self._game_over
+                u'joined': self._game_joined,
+                u'gameStarted': self._game_started,
+                u'gameIsOn': self._make_move,
+                u'gameIsOver': self._game_over
                 }
         while True:
             response = self._connection.receive()
@@ -57,7 +58,21 @@ class PingPongBot(object):
         self._log.info('Game started: %s vs. %s' % (data[0], data[1]))
 
     def _make_move(self, data):
-        self._connection.send({'msgType': 'changeDir', 'data': -1.0})
+        ball_y = 0
+        plyr_y = 0
+        paddle_mid = 25
+        try:
+            ball_y = data[u'ball']['pos'][u'y']
+            plyr_y = data[u'left'][u'y']
+            paddle_mid = data[u'conf'][u'paddleHeight'] / 2
+        except KeyError:
+            self._log.error('Object not found in json')
+        dir = 0
+        if ball_y > (plyr_y + paddle_mid):
+            dir = 1.0
+        elif ball_y < (plyr_y + paddle_mid):
+            dir = -1.0
+        self._connection.send({'msgType': 'changeDir', 'data': dir})
 
     def _game_over(self, data):
         self._log.info('Game ended. Winner: %s' % data)
