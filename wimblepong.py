@@ -119,19 +119,17 @@ class PingPongBot(object):
         mid_region = [paddle_top+paddle_height*0.2, paddle_top+paddle_height*0.8]
         bottom_region = [paddle_top+paddle_height*0.8, paddle_top+paddle_height]
         #self._log.info('dy=%f' % dy)
+
+
+        KILLSHOT = 0.4
+        if self.game.ball.velocity > KILLSHOT:
+            dy *= -1 # invert direction
         if dy == 0:
             return random.choice([top_region, bottom_region])
+        elif dy > 0:
+            return top_region
         else:
-            if self.killshot:
-                if dy > 0:
-                    return top_region
-                else:
-                    return bottom_region
-            else:
-                if dy < 0:
-                    return top_region
-                else:
-                    return bottom_region
+            return bottom_region
 
     def _in_region(self, value, region):
         if region[0] <= value <= region[1]:

@@ -17,7 +17,7 @@ class PongGame(object):
             self.opponent.update(data[self.opponent.side])
             self.time = data['time']
             self.ball.update(data['ball'], self.time)
-            self.conf.update(data['conf']) 
+            self.conf.update(data['conf'])
         except KeyError:
             self._log.error('Error parsing json')
 
@@ -74,7 +74,7 @@ class PongBall(object):
             self.x = newx
             self.y = newy
             self.time = newtime
-            self._log.info('Current velocity: %f' %self.velocity)
+            #self._log.info('Current velocity: %f' %self.velocity)
         except KeyError:
             self._log.error('Error parsing Ball data')
 
