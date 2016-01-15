@@ -40,6 +40,8 @@ class PingPongBot(object):
         self.name = teamname
         self._log.info("Starting game!")
         self.lastMove = 0
+        self.myDirection = 0
+        self.lastY = 0
         if oppname is None:
             self.game = Pong.PongGame(self._log, teamname)
             self._connection.send({'msgType': 'join', 'data': teamname})
@@ -71,18 +73,18 @@ class PingPongBot(object):
         self._log.info('Game started: %s vs. %s' % (data[0], data[1]))
 
     def _make_move(self, data):
-        self.game.update(data)
+        self.update(data)
 
-        dir = self._get_move()
+        dir = self.calculate_move()
 
-        if (dir != self.lastMove):
+        if (dir != self.lastMove) or (self.game.me.dir != self.lastMove):
             self._connection.send({'msgType': 'changeDir', 'data': dir})
             self.lastMove = dir
 
     def _game_over(self, data):
         self._log.info('Game ended. Winner: %s' % data)
 
-    def _get_move(self):
+    def calculate_move(self):
 
         expected_y, dy = self.projected_y()
 
@@ -99,7 +101,12 @@ class PingPongBot(object):
         region = self._select_region(dy, paddle_top, paddle_height)
         return self._in_region(expected_y, region)
 
-        if abs(expected_y - paddle_mid) < (paddle_height / 2):
+        h = self.game.conf.height
+        ballD = self.game.conf.ballRadius * 1.8
+
+        if (abs(expected_y - paddle_mid) < (paddle_height / 2)) or \
+            (self.lastMove == -1 and paddle_top < ball) or \
+            (self.lastMove == 1 and abs(paddle_top+paddle_height-h) < ball):
             return 0
         elif expected_y > (paddle_bottom):
             return 1.0
@@ -110,7 +117,7 @@ class PingPongBot(object):
         top_region = [paddle_top, paddle_top+paddle_height*0.2]
         mid_region = [paddle_top+paddle_height*0.2, paddle_top+paddle_height*0.8]
         bottom_region = [paddle_top+paddle_height*0.8, paddle_top+paddle_height]
-        self._log.info('dy=%f' % dy)
+        #self._log.info('dy=%f' % dy)
         if dy == 0:
             return random.choice([top_region, bottom_region])
         elif dy > 0:
@@ -125,6 +132,10 @@ class PingPongBot(object):
             return -1
         else:
             return 1
+
+    def update(self, data):
+        self.game.update(data)
+
 
     def projected_y(self, side=None):
         if side is None:
@@ -171,11 +182,17 @@ class PingPongBot(object):
 
         k = dy / dx
         y = k * (x_goal - x1) + y1
+        y2 = k * (x_goal-5 - x1) + y1
+
 
         if (y // height) % 2 == 0:
-            return (y - height * (y // height) + offset, k * ((-1) ** (y // height)))
+            ret1 = (y - height * (y // height) + offset)
+            ret2 = ret1 - (y2 - height * (y2 // height) + offset)
+            return (ret1, ret2)
         else:
-            return  (height * ((y // height) + 1) - y + offset, k * ((-1) ** (y // height + 1)))
+            ret1 = height * ((y // height) + 1) - y + offset
+            ret2 = ret1 - (height * ((y2 // height) + 1) - y2 + offset)
+        return  (ret1, ret2)
 
 
 if __name__ == '__main__':

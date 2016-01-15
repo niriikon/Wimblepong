@@ -34,10 +34,17 @@ class PongPlayer(object):
         self._log = log
         self.side = None
         self.y = 0
+        self.dir = 0
 
     def update(self, data):
         try:
-            self.y = data['y']
+            newy = data['y']
+            self.dir = newy - self.y
+            if self.dir > 0:
+                self.dir = 1
+            elif self.dir < 0:
+                self.dir = -1
+            self.y = newy
             self.name = data['playerName']
         except KeyError:
             self._log.error('Error parsing player data')
