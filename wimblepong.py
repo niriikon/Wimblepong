@@ -101,13 +101,13 @@ class PingPongBot(object):
 
 
     def mode_change(self, force=False):
-        if force or self.turnCounter > 5:
+        if force or self.turnCounter > 4:
             self.turnCounter = 0
             if self.mode == "POWERBALL":
                 self.mode = "KILLSHOT"
-            if self.mode == "KILLSHOT":
+            elif self.mode == "KILLSHOT":
                 self.mode = "RANDOM"
-            if self.mode == "RANDOM":
+            else:
                 self.mode = "POWERBALL"
 
     def _game_over(self, data):
