@@ -96,7 +96,7 @@ class PingPongBot(object):
     def post_change(self):
         if abs(self.game.ball.k()) < 0.3:
             self.mode == "POWERBALL"
-        elif abs(self.game.ball.k()) > 0.7:
+        elif abs(self.game.ball.k()) > 0.6 and self.game.ball.velocity > 0.4:
             self.mode == "KILLSHOT"
 
 
@@ -143,16 +143,14 @@ class PingPongBot(object):
             return -1.0
 
     def _select_region(self, dy, paddle_top, paddle_height):
-        top_region = [paddle_top, paddle_top+paddle_height*0.2]
-        mid_region = [paddle_top+paddle_height*0.2, paddle_top+paddle_height*0.8]
-        bottom_region = [paddle_top+paddle_height*0.8, paddle_top+paddle_height]
+        top_region = [paddle_top, paddle_top+paddle_height*0.15]
+        mid_region = [paddle_top+paddle_height*0.15, paddle_top+paddle_height*0.85]
+        bottom_region = [paddle_top+paddle_height*0.85, paddle_top+paddle_height]
         #self._log.info('dy=%f' % dy)
 
-
-        KILLSHOT = 0.4
-        if self.game.ball.velocity > KILLSHOT:
+        if self.mode == "KILLSHOT":
             dy *= -1 # invert direction
-        if dy == 0:
+        if dy == 0 or self.mode == "RANDOM":
             return random.choice([top_region, bottom_region])
         elif dy > 0:
             return top_region
