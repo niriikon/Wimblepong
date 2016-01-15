@@ -62,6 +62,7 @@ class PongBall(object):
         self.heading = (0, 0)
         self.time = 0
         self.velocity = 0
+        self.last_log_vel = 0
 
     def update(self, data, time):
         try:
@@ -74,7 +75,9 @@ class PongBall(object):
             self.x = newx
             self.y = newy
             self.time = newtime
-            #self._log.info('Current velocity: %f' %self.velocity)
+            if (self.last_log_vel + 0.1) < self.velocity:
+                self._log.info('Current velocity: %f' %self.velocity)
+                self.last_log_vel = self.velocity
         except KeyError:
             self._log.error('Error parsing Ball data')
 

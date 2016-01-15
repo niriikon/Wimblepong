@@ -84,6 +84,7 @@ class PingPongBot(object):
 
     def _game_over(self, data):
         self._log.info('Game ended. Winner: %s' % data)
+        self.last_log_vel = 0
 
     def calculate_move(self):
 
