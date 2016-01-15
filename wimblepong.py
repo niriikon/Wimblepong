@@ -82,9 +82,9 @@ class PingPongBot(object):
         dir = 0
         if abs(ball_y - plyr_y - paddle_mid) < 1:
             dir = 0
-        elif ball_y > (plyr_y + paddle_mid):
+        elif ball_y > (plyr_y + paddle_mid*2): # (plyr_y + paddle_mid)
             dir = 1.0
-        elif ball_y < (plyr_y + paddle_mid):
+        elif ball_y < (plyr_y): # (plyr_y + paddle_mid)
             dir = -1.0
         self._connection.send({'msgType': 'changeDir', 'data': dir})
 

@@ -107,8 +107,8 @@ class PongBall(object):
 class PongConfig(object):
     def __init__(self, log):
         self._log = log
-        self.width = 480
-        self.height = 640
+        self.width = 640
+        self.height = 480
         self.paddleHeight = 50
         self.paddleWidth = 5
         self.ballRadius = 5
