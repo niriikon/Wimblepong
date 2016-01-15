@@ -1,3 +1,4 @@
+import math
 class PongGame(object):
     def __init__(self, log, playerName, oppName="opponent"):
         self._log = log
@@ -14,9 +15,9 @@ class PongGame(object):
             self._find_side(data)
             self.me.update(data[self.me.side])
             self.opponent.update(data[self.opponent.side])
-            self.ball.update(data['ball'])
-            self.conf.update(data['conf'])
             self.time = data['time']
+            self.ball.update(data['ball'], self.time)
+            self.conf.update(data['conf']) 
         except KeyError:
             self._log.error('Error parsing json')
 
@@ -59,15 +60,21 @@ class PongBall(object):
         self.x = 0
         self.y = 0
         self.heading = (0, 0)
+        self.time = 0
+        self.velocity = 0
 
-    def update(self, data):
+    def update(self, data, time):
         try:
+            newtime = time
             newx = data['pos']['x']
             newy = data['pos']['y']
             if self.x != 0 or self.y != 0:
                 self.heading = (newx-self.x, newy-self.y)
+            self.velocity = math.sqrt((newx-self.x)**2 + (newy-self.y)**2) / (newtime - self.time)
             self.x = newx
             self.y = newy
+            self.time = newtime
+            self._log.info('Current velocity: %f' %self.velocity)
         except KeyError:
             self._log.error('Error parsing Ball data')
 

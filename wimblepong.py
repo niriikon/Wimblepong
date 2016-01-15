@@ -35,6 +35,7 @@ class PingPongBot(object):
         self._connection = connection
         self._log = log
         self.time = 0
+        self.killshot = False
 
     def run(self, teamname, oppname=None):
         self.name = teamname
@@ -120,10 +121,17 @@ class PingPongBot(object):
         #self._log.info('dy=%f' % dy)
         if dy == 0:
             return random.choice([top_region, bottom_region])
-        elif dy > 0:
-            return top_region
         else:
-            return bottom_region
+            if self.killshot:
+                if dy > 0:
+                    return top_region
+                else:
+                    return bottom_region
+            else:
+                if dy < 0:
+                    return top_region
+                else:
+                    return bottom_region
 
     def _in_region(self, value, region):
         if region[0] <= value <= region[1]:
