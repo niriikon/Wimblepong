@@ -50,6 +50,7 @@ class PongBall(object):
         self.x = 0
         self.y = 0
         self.heading = (0, 0)
+        self.angle = 0
 
     def update(self, data):
         try:
@@ -57,6 +58,7 @@ class PongBall(object):
             newy = data['pos']['y']
             if self.x != 0 or self.y != 0:
                 self.heading = (newx-self.x, newy-self.y)
+                #self.angle = 
             self.x = newx
             self.y = newy
         except KeyError:
