@@ -8,11 +8,6 @@ import Pong
 import math
 import random
 
-X_LEFT = 0
-X_RIGHT = 640
-Y_MIN = 0
-Y_MAX = 480
-
 class JsonOverTcp(object):
     """Send and receive newline delimited JSON messages over TCP."""
     def __init__(self, host, port):
@@ -36,6 +31,7 @@ class PingPongBot(object):
         self._log = log
         self.time = 0
         self.killshot = False
+        self.nextTurn = None
 
     def run(self, teamname, oppname=None):
         self.name = teamname
@@ -43,8 +39,12 @@ class PingPongBot(object):
         self.lastMove = 0
         self.myDirection = 0
         self.lastY = 0
+        self.turnCounter = 0
+        self.mode = "KILLSHOT"
+        self.postChange=False
         if oppname is None:
             self.game = Pong.PongGame(self._log, teamname)
+            self.nextTurn = self.game.turn
             self._connection.send({'msgType': 'join', 'data': teamname})
         else:
             self.game = Pong.PongGame(self._log, teamname, oppname)
@@ -76,11 +76,39 @@ class PingPongBot(object):
     def _make_move(self, data):
         self.update(data)
 
+        if self.game.turn != self.nextTurn:
+            self.turn_change()
+        if self.postChange:
+            self.post_change()
+            self.postChange=False
+
         dir = self.calculate_move()
 
         if (dir != self.lastMove) or (self.game.me.dir != self.lastMove):
             self._connection.send({'msgType': 'changeDir', 'data': dir})
             self.lastMove = dir
+    def turn_change(self):
+        self.game.turn = self.nextTurn
+        self.turnCounter += 1
+        self.mode_change()
+        self.postChange = True
+
+    def post_change(self):
+        if abs(self.game.ball.k()) < 0.3:
+            self.mode == "POWERBALL"
+        elif abs(self.game.ball.k()) > 0.7:
+            self.mode == "KILLSHOT"
+
+
+    def mode_change(self, force=False):
+        if force or self.turnCounter > 5:
+            self.turnCounter = 0
+            if self.mode == "POWERBALL":
+                self.mode = "KILLSHOT"
+            if self.mode == "KILLSHOT":
+                self.mode = "RANDOM"
+            if self.mode == "RANDOM":
+                self.mode = "POWERBALL"
 
     def _game_over(self, data):
         self._log.info('Game ended. Winner: %s' % data)

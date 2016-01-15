@@ -9,6 +9,7 @@ class PongGame(object):
         self.ball = PongBall(log)
         self.conf = PongConfig(log)
         self.time = 0
+        self.turn = self.me
 
     def update(self, data):
         try:
@@ -28,6 +29,17 @@ class PongGame(object):
         else:
             self.me.side = 'right'
             self.opponent.side = 'left'
+    def update_turn(self):
+        if self.ball.heading(0) < 0:
+            if self.me.side == "left":
+                self.turn = self.me
+            else:
+                self.turn = self.opponent
+        else:
+            if self.me.side == "right":
+                self.turn = self.me
+            else:
+                self.turn = self.opponent
 
 class PongPlayer(object):
     def __init__(self, log, name):
@@ -62,6 +74,12 @@ class PongBall(object):
         self.heading = (0, 0)
         self.time = 0
         self.velocity = 0
+
+    def k(self):
+        try:
+            return self.heading(1) / self.heading(0)
+        except Exception:
+            return 0.5
 
     def update(self, data, time):
         try:
