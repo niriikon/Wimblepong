@@ -5,6 +5,8 @@ import logging
 import socket
 import sys
 import Pong
+import math
+import random
 
 X_LEFT = 0
 X_RIGHT = 640
@@ -32,10 +34,12 @@ class PingPongBot(object):
     def __init__(self, connection, log):
         self._connection = connection
         self._log = log
+        self.time = 0
 
     def run(self, teamname, oppname=None):
         self.name = teamname
         self._log.info("Starting game!")
+        self.lastMove = 0
         if oppname is None:
             self.game = Pong.PongGame(self._log, teamname)
             self._connection.send({'msgType': 'join', 'data': teamname})
@@ -67,29 +71,112 @@ class PingPongBot(object):
         self._log.info('Game started: %s vs. %s' % (data[0], data[1]))
 
     def _make_move(self, data):
-        ball_y = 0
-        plyr_y = 0
-        paddle_mid = 25
+        self.game.update(data)
 
-        try:
-            self.game.update(data)
-            ball_y = self.game.ball.projected_y(self.game.me.side)
-            plyr_y = self.game.me.y
-            paddle_mid = self.game.conf.paddleHeight / 2
-        except KeyError:
-            self._log.error('Object not found in json')
+        dir = self._get_move()
 
-        dir = 0
-        if abs(ball_y - plyr_y - paddle_mid) < 1:
-            dir = 0
-        elif ball_y > (plyr_y + paddle_mid*2): # (plyr_y + paddle_mid)
-            dir = 1.0
-        elif ball_y < (plyr_y): # (plyr_y + paddle_mid)
-            dir = -1.0
-        self._connection.send({'msgType': 'changeDir', 'data': dir})
+        if (dir != self.lastMove):
+            self._connection.send({'msgType': 'changeDir', 'data': dir})
+            self.lastMove = dir
 
     def _game_over(self, data):
         self._log.info('Game ended. Winner: %s' % data)
+
+    def _get_move(self):
+
+        expected_y, dy = self.projected_y()
+
+        paddle_top = self.game.me.y
+        paddle_height = self.game.conf.paddleHeight
+        paddle_mid = paddle_top + paddle_height / 2
+        paddle_bottom = paddle_top + paddle_height
+
+        top_region = (paddle_top, paddle_top+5)
+        bottom_region = (paddle_bottom-5, paddle_bottom)
+
+        dir = 0
+
+        region = self._select_region(dy, paddle_top, paddle_height)
+        return self._in_region(expected_y, region)
+
+        if abs(expected_y - paddle_mid) < (paddle_height / 2):
+            return 0
+        elif expected_y > (paddle_bottom):
+            return 1.0
+        elif expected_y < (paddle_top):
+            return -1.0
+
+    def _select_region(self, dy, paddle_top, paddle_height):
+        top_region = [paddle_top, paddle_top+paddle_height*0.2]
+        mid_region = [paddle_top+paddle_height*0.2, paddle_top+paddle_height*0.8]
+        bottom_region = [paddle_top+paddle_height*0.8, paddle_top+paddle_height]
+        self._log.info('dy=%f' % dy)
+        if dy == 0:
+            return random.choice([top_region, bottom_region])
+        elif dy > 0:
+            return top_region
+        else:
+            return bottom_region
+
+    def _in_region(self, value, region):
+        if region[0] <= value <= region[1]:
+            return 0
+        elif value < region[0]:
+            return -1
+        else:
+            return 1
+
+    def projected_y(self, side=None):
+        if side is None:
+            side = self.game.me.side
+
+        ball = self.game.ball
+        ballR = self.game.conf.ballRadius
+        paddleW = self.game.conf.paddleWidth
+
+        # Conversion to actual playable area
+        x1 = ball.x - ballR
+        y1 = ball.y - ballR
+        dx = ball.heading[0]
+        dy = ball.heading[1]
+        width = self.game.conf.width - (ballR*2) - (paddleW*2)
+        height = self.game.conf.height - (ballR*2)
+
+        new_t = self.game.time
+        dt = new_t - self.time
+        self.time = new_t
+
+        if dx == 0:
+            return y1, 0
+
+        # Convert back to actual y values
+        ret = self.project_y(x1, y1, dy, dx, height, width, side, ballR)
+
+
+        k = dy/dx
+
+        return ret
+
+    def project_y(self, x1, y1, dy=0, dx=0, height=480, width=640, side="left", offset=5):
+        if side == "right":
+            if dx > 0:
+                x_goal = width
+            else:
+                x_goal = -width
+        else:
+            if dx < 0:
+                x_goal = 0
+            else:
+                x_goal = width*2
+
+        k = dy / dx
+        y = k * (x_goal - x1) + y1
+
+        if (y // height) % 2 == 0:
+            return (y - height * (y // height) + offset, k * ((-1) ** (y // height)))
+        else:
+            return  (height * ((y // height) + 1) - y + offset, k * ((-1) ** (y // height + 1)))
+
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s',

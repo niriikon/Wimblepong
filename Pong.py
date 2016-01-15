@@ -7,6 +7,7 @@ class PongGame(object):
         self.opponent = PongPlayer(log, oppName)
         self.ball = PongBall(log)
         self.conf = PongConfig(log)
+        self.time = 0
 
     def update(self, data):
         try:
@@ -15,6 +16,7 @@ class PongGame(object):
             self.opponent.update(data[self.opponent.side])
             self.ball.update(data['ball'])
             self.conf.update(data['conf'])
+            self.time = data['time']
         except KeyError:
             self._log.error('Error parsing json')
 
@@ -100,8 +102,6 @@ class PongBall(object):
             ret = y - height * (y // height)
         else:
             ret =  height * ((y // height) + 1) - y
-        #self._log.info('x1: %f, y1: %f, dx: %f, dy: %f, y: %f, ret: %f'
-        #                 % (x1, y1, dx, dy, y, ret))
         return ret
 
 class PongConfig(object):
